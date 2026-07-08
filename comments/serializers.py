@@ -2,6 +2,10 @@ import bleach
 import re
 from rest_framework import serializers
 from .models import UserModel, CommentModel
+from io import BytesIO
+from django.core.files.images import get_image_dimensions
+from django.core.files.uploadedfile import InMemoryUploadedFile
+from PIL import Image
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -45,6 +49,47 @@ class CommentCreateSerializer(serializers.ModelSerializer):
 
         comment = CommentModel.objects.create(user=user, **validated_data)
         return comment
+
+    def validate_file(self, file_obj):
+
+        if not file_obj:
+            return file_obj
+
+        file_extension = file_obj.name.split(".")[-1].lower()
+
+        if file_extension == "txt":
+            if file_obj.size > 100 * 1024:
+                raise serializers.ValidationError(
+                    "Текстовий файл не повинен перевищувати 100 Кб."
+                )
+            return file_obj
+
+        elif file_extension in ["jpg", "jpeg", "png", "gif"]:
+            width, height = get_image_dimensions(file_obj)
+
+            if not width or not height:
+                raise serializers.ValidationError("Некоректний файл зображення.")
+
+            if width > 320 or height > 240:
+                img = Image.open(file_obj)
+                img.thumbnail((320, 240))
+                buffer = BytesIO()
+                img.save(buffer, format=img.format if img.format else "JPEG")
+                buffer.seek(0)
+                file_obj = InMemoryUploadedFile(
+                    buffer,
+                    "FileField",
+                    file_obj.name,
+                    file_obj.content_type,
+                    buffer.getbuffer().nbytes,
+                    None,
+                )
+            return file_obj
+
+        else:
+            raise serializers.ValidationError(
+                "Дозволені формати файлів: JPG, GIF, PNG, TXT."
+            )
 
 
 class CommentFetchSerializer(serializers.ModelSerializer):
