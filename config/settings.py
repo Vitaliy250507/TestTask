@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "comments",
     "rest_framework",
+    "captcha_custom",
 ]
 
 MIDDLEWARE = [
