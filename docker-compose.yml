@@ -29,6 +29,18 @@ services:
     depends_on:
       - db
       - redis
+  
+  worker:
+    build: .
+    command: celery -A config worker --loglevel=info
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+      - redis
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
 
 volumes:
   postgres_data:
