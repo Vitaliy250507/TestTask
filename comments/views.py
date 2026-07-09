@@ -5,6 +5,11 @@ from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.core.cache import cache
+from django.conf import settings
+
+
+CACHE_KEY_COMMENTS = "comments_tree_cache"
 
 
 class CommentListCreateView(generics.ListCreateAPIView):
@@ -15,6 +20,20 @@ class CommentListCreateView(generics.ListCreateAPIView):
         if self.request.method == "POST":
             return CommentCreateSerializer
         return CommentFetchSerializer
+
+    def list(self, request, *args, **kwargs):
+        cached_comments = cache.get(CACHE_KEY_COMMENTS)
+
+        if cached_comments is not None:
+            return Response(cached_comments)
+
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
+        data = serializer.data
+
+        cache.set(CACHE_KEY_COMMENTS, data, settings.CACHE_TTL)
+
+        return Response(data)
 
     def perform_create(self, serializer):
         instance = serializer.save()
@@ -33,6 +52,8 @@ class CommentListCreateView(generics.ListCreateAPIView):
         serializer.is_valid(raise_exception=True)
         comment_instance = serializer.save()
         broadcasting_serializer = CommentFetchSerializer(comment_instance)
+
+        cache.delete(CACHE_KEY_COMMENTS)
 
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
