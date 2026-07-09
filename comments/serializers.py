@@ -6,6 +6,7 @@ from io import BytesIO
 from django.core.files.images import get_image_dimensions
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from PIL import Image
+from django.core.cache import cache
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -23,10 +24,12 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 class CommentCreateSerializer(serializers.ModelSerializer):
     user = UserProfileSerializer()
+    captcha_key = serializers.CharField(write_only=True)
+    captcha_value = serializers.CharField(write_only=True)
 
     class Meta:
         model = CommentModel
-        fields = ["user", "parent", "text", "file"]
+        fields = ["user", "parent", "text", "file", "captcha_key", "captcha_value"]
 
     def validate_text(self, value):
         allowed_tags = ["a", "code", "i", "strong"]
@@ -36,6 +39,30 @@ class CommentCreateSerializer(serializers.ModelSerializer):
             value, tags=allowed_tags, attributes=allowed_attributes, strip=True
         )
         return cleaned_text
+
+    def validate(self, data):
+        captcha_key = data.get("captcha_key")
+        captcha_value = data.get("captcha_value")
+
+        redis_key = f"captcha_{captcha_key}"
+        correct_value = cache.get(redis_key)
+
+        if not correct_value:
+            raise serializers.ValidationError(
+                {"captcha_value": "Капча застаріла або не існує. Оновіть сторінку."}
+            )
+
+        if captcha_value.upper() != correct_value.upper():
+            raise serializers.ValidationError(
+                {"captcha_value": "Невірний код з картинки."}
+            )
+
+        cache.delete(redis_key)
+
+        data.pop("captcha_key")
+        data.pop("captcha_value")
+
+        return data
 
     def create(self, validated_data):
         user_data = validated_data.pop("user")
