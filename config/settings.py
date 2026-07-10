@@ -43,9 +43,11 @@ INSTALLED_APPS = [
     "rest_framework",
     "captcha_custom",
     "channels",
+    "corsheaders",
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -162,3 +164,6 @@ CELERY_BROKER_URL = "redis://redis:6379/2"
 CELERY_RESULT_BACKEND = "redis://redis:6379/2"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
+
+
+CORS_ALLOW_ALL_ORIGINS = True
