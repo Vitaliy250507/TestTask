@@ -1,2 +1,7 @@
-.venv/
-.git/
+**/node_modules/
+**/dist/
+**/.venv/
+**/__pycache__/
+*.html
+.git
+.env
