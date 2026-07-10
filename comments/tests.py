@@ -80,3 +80,21 @@ class CommentAPITests(APITestCase):
         from .views import CACHE_KEY_COMMENTS
 
         self.assertIsNotNone(cache.get(CACHE_KEY_COMMENTS))
+
+    def test_comments_list_returns_only_root_comments_with_nested_replies(self):
+        """Перевіряємо, що GET-запит повертає лише батьківські коментарі, а відповіді йдуть вкладеними"""
+
+        user = UserModel.objects.create(username="alex", email="alex@example.com")
+        root_comment = CommentModel.objects.create(
+            user=user, text="I am a root comment"
+        )
+
+        CommentModel.objects.create(
+            user=user, text="I am a nested reply", parent=root_comment
+        )
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["text"], "I am a root comment")
