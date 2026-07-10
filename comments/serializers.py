@@ -7,6 +7,7 @@ from django.core.files.images import get_image_dimensions
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from PIL import Image
 from django.core.cache import cache
+from .tasks import optimize_comment_image
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -75,6 +76,10 @@ class CommentCreateSerializer(serializers.ModelSerializer):
         )
 
         comment = CommentModel.objects.create(user=user, **validated_data)
+
+        if comment.file:
+            optimize_comment_image.delay(comment.file.name)
+
         return comment
 
     def validate_file(self, file_obj):
