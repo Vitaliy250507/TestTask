@@ -61,9 +61,11 @@ function App() {
 
       const response = await api.get(`comments/?ordering=${currentOrdering}&page=${page}`);
 
+
       if (response.data && response.data.results) {
         setComments(response.data.results);
-        setTotalCount(response.data.count);
+
+        setTotalCount(Number(response.data.count));
       } else {
         setComments(response.data);
         setTotalCount(response.data.length || 0);
@@ -165,6 +167,32 @@ function App() {
               onCommentSuccess={() => loadComments(ordering, currentPage)}
             />
           ))}
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '30px', marginBottom: '30px' }}>
+          {Array.from({ length: Math.ceil(totalCount / commentsPerPage) || 1 }, (_, index) => {
+            const pageNumber = index + 1;
+            return (
+              <button
+                key={pageNumber}
+                type="button"
+                onClick={() => setCurrentPage(pageNumber)}
+                style={{
+                  padding: '8px 14px',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  backgroundColor: currentPage === pageNumber ? '#007bff' : '#fff',
+                  color: currentPage === pageNumber ? '#fff' : '#333',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  transition: 'all 0.1s ease-in-out'
+                }}
+              >
+                {pageNumber}
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>

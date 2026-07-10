@@ -35,30 +35,23 @@ class CommentListCreateView(generics.ListCreateAPIView):
         return CommentFetchSerializer
 
     def list(self, request, *args, **kwargs):
-        current_ordering = request.query_params.get("ordering", "-created_at")
-        current_page = request.query_params.get("page", "1")
-
-        cache_key = f"comments_tree_cache_{current_ordering}_page_{current_page}"
-
-        cached_comments = cache.get(cache_key)
-        if cached_comments is not None:
-            return Response(cached_comments)
-
         queryset = self.filter_queryset(self.get_queryset())
 
         page = self.paginate_queryset(queryset)
 
         if page is not None:
             serializer = self.get_serializer(page, many=True)
-            paginated_response = self.get_paginated_response(serializer.data)
-
-            cache.set(cache_key, paginated_response.data, settings.CACHE_TTL)
-            return paginated_response
+            return self.get_paginated_response(serializer.data)
 
         serializer = self.get_serializer(queryset, many=True)
-        data = serializer.data
-        cache.set(cache_key, data, settings.CACHE_TTL)
-        return Response(data)
+        return Response(
+            {
+                "count": queryset.count(),
+                "next": None,
+                "previous": None,
+                "results": serializer.data,
+            }
+        )
 
     def perform_create(self, serializer):
         instance = serializer.save()
