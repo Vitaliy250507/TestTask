@@ -127,10 +127,11 @@ class CommentCreateSerializer(serializers.ModelSerializer):
 class CommentFetchSerializer(serializers.ModelSerializer):
     user = UserProfileSerializer(read_only=True)
     replies = serializers.SerializerMethodField()
+    parent = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
         model = CommentModel
-        fields = ["id", "user", "text", "file", "created_at", "replies"]
+        fields = ["id", "user", "text", "file", "created_at", "parent", "replies"]
 
     def get_replies(self, obj):
         replies = obj.replies.all()
