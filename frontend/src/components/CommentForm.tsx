@@ -11,7 +11,6 @@ interface CommentFormProps {
 
 export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCommentSuccess, onReplyCancel }) => {
     const [user, setUser] = useState<UserProfile>({ username: '', email: '', homepage: '' });
-    const [text, setText] = useState<string>('');
     const [captchaValue, setCaptchaValue] = useState<string>('');
     const [captchaKey, setCaptchaKey] = useState<string>('');
     const [file, setFile] = useState<File | null>(null);
@@ -19,16 +18,65 @@ export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCom
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
     const [showPreview, setShowPreview] = useState<boolean>(false);
+    const [previewContent, setPreviewContent] = useState<string>('');
 
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const editorRef = useRef<HTMLDivElement>(null);
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const handleFormatting = (command: 'bold' | 'italic' | 'createLink' | 'formatBlock') => {
+        const selection = window.getSelection();
+
+        if (command === 'createLink') {
+            const url = prompt('Введіть URL адресу (наприклад, http://example.com):');
+            if (!url) return;
+            document.execCommand(command, false, url);
+        } else if (command === 'formatBlock') {
+            if (!selection || selection.toString() === '' || selection.rangeCount === 0) {
+                alert('Будь ласка, виділіть текст, який хочете зробити кодом!');
+                return;
+            }
+
+            const selectedText = selection.toString();
+            const range = selection.getRangeAt(0);
+
+            range.deleteContents();
+
+            const codeElement = document.createElement('code');
+
+            codeElement.style.fontFamily = "Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace";
+            codeElement.style.fontSize = '14px';
+
+            codeElement.style.display = 'inline';
+            codeElement.style.background = 'transparent';
+            codeElement.style.backgroundColor = 'transparent';
+            codeElement.style.color = 'inherit';
+            codeElement.style.padding = '0';
+
+            codeElement.innerText = selectedText;
+
+            range.insertNode(codeElement);
+
+            range.setStartAfter(codeElement);
+            range.setEndAfter(codeElement);
+
+            selection.removeAllRanges();
+            selection.addRange(range);
+            selection.collapseToEnd();
+        } else {
+            document.execCommand(command, false);
+        }
+
+        if (command !== 'formatBlock' && selection && selection.rangeCount > 0) {
+            selection.collapseToEnd();
+        }
+
+        editorRef.current?.focus();
+    };
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         if (name in user) {
             setUser((prev) => ({ ...prev, [name]: value }));
-        } else if (name === 'text') {
-            setText(value);
         } else if (name === 'captchaValue') {
             setCaptchaValue(value);
         }
@@ -40,37 +88,28 @@ export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCom
         }
     };
 
-    const insertTag = (tagType: 'i' | 'strong' | 'code' | 'a') => {
-        const textarea = textareaRef.current;
-        if (!textarea) return;
-
-        const startPos = textarea.selectionStart;
-        const endPos = textarea.selectionEnd;
-        const currentText = textarea.value;
-
-        let openTag = `<${tagType}>`;
-        let closeTag = `</${tagType}>`;
-
-        if (tagType === 'a') {
-            openTag = '<a href="" title="">';
+    const togglePreview = () => {
+        if (!showPreview) {
+            setPreviewContent(editorRef.current?.innerHTML || '');
         }
-
-        const selectedText = currentText.substring(startPos, endPos);
-        const replacement = openTag + selectedText + closeTag;
-
-        const newText = currentText.substring(0, startPos) + replacement + currentText.substring(endPos);
-        setText(newText);
-
-        setTimeout(() => {
-            textarea.focus();
-            const newCursorPos = startPos + openTag.length + selectedText.length + closeTag.length;
-            textarea.setSelectionRange(newCursorPos, newCursorPos);
-        }, 50);
+        setShowPreview(!showPreview);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
+        setLoading(false);
+
+        let htmlText = editorRef.current?.innerHTML || '';
+
+        if (htmlText === '<br>' || !htmlText.trim()) {
+            setError('Поле коментаря не може бути порожнім.');
+            return;
+        }
+
+        htmlText = htmlText.replace(/<b>/g, '<strong>').replace(/<\/b>/g, '</strong>');
+        htmlText = htmlText.replace(/<em>/g, '<i>').replace(/<\/em>/g, '</i>');
+
         setLoading(true);
 
         try {
@@ -78,7 +117,8 @@ export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCom
             formData.append('user.username', user.username);
             formData.append('user.email', user.email);
             if (user.homepage) formData.append('user.homepage', user.homepage);
-            formData.append('text', text);
+
+            formData.append('text', htmlText);
             formData.append('captcha_key', captchaKey);
             formData.append('captcha_value', captchaValue);
 
@@ -96,9 +136,23 @@ export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCom
 
             if (response.status === 201) {
                 onCommentSuccess();
-                setText('');
+
+                if (editorRef.current) {
+                    editorRef.current.innerHTML = '';
+                    editorRef.current.focus();
+                    const selection = window.getSelection();
+                    if (selection) {
+                        const range = document.createRange();
+                        range.selectNodeContents(editorRef.current);
+                        range.collapse(true);
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                    }
+                }
+
                 setCaptchaValue('');
                 setShowPreview(false);
+                setPreviewContent('');
                 if (fileInputRef.current) fileInputRef.current.value = '';
                 setTriggerCaptchaRefresh(prev => !prev);
 
@@ -111,6 +165,7 @@ export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCom
                 if (errors.user?.username) setError(errors.user.username[0]);
                 else if (errors.user?.email) setError(errors.user.email[0]);
                 else if (errors.captcha_value) setError(errors.captcha_value[0]);
+                else if (errors.text) setError(errors.text[0]);
                 else setError('Сталася помилка при збереженні коментаря.');
             } else {
                 setError('Не вдалося зв’язатися з сервером.');
@@ -146,28 +201,62 @@ export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCom
             </div>
 
             <div style={{ marginBottom: '10px' }}>
-                <div style={{ backgroundColor: '#f3f4f6', padding: '5px', border: '1px solid #ccc', borderBottom: 'none', display: 'flex', gap: '5px', borderRadius: '4px 4px 0 0' }}>
-                    <button type="button" onClick={() => insertTag('i')} style={{ padding: '2px 8px', cursor: 'pointer', fontWeight: 'bold', fontStyle: 'italic' }}>[i]</button>
-                    <button type="button" onClick={() => insertTag('strong')} style={{ padding: '2px 8px', cursor: 'pointer', fontWeight: 'bold' }}>[strong]</button>
-                    <button type="button" onClick={() => insertTag('code')} style={{ padding: '2px 8px', cursor: 'pointer', fontFamily: 'monospace' }}>[code]</button>
-                    <button type="button" onClick={() => insertTag('a')} style={{ padding: '2px 8px', cursor: 'pointer', color: '#2563eb' }}>[a]</button>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                    <button
+                        type="button"
+                        onMouseDown={(e) => { e.preventDefault(); handleFormatting('bold'); }}
+                        style={{ padding: '6px 12px', fontSize: '13px', fontWeight: 'bold', color: '#1d4ed8', backgroundColor: 'rgb(163, 163, 163)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                    >
+                        Жирний
+                    </button>
+                    <button
+                        type="button"
+                        onMouseDown={(e) => { e.preventDefault(); handleFormatting('italic'); }}
+                        style={{ padding: '6px 12px', fontSize: '13px', fontStyle: 'italic', color: '#1d4ed8', backgroundColor: 'rgb(163, 163, 163)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                    >
+                        Курсив
+                    </button>
+                    <button
+                        type="button"
+                        onMouseDown={(e) => { e.preventDefault(); handleFormatting('formatBlock'); }}
+                        style={{ padding: '6px 12px', fontSize: '13px', fontFamily: 'monospace', color: '#1d4ed8', backgroundColor: 'rgb(163, 163, 163)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                    >
+                        Код
+                    </button>
+                    <button
+                        type="button"
+                        onMouseDown={(e) => { e.preventDefault(); handleFormatting('createLink'); }}
+                        style={{ padding: '6px 12px', fontSize: '13px', color: '#1d4ed8', backgroundColor: 'rgb(163, 163, 163)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                    >
+                        Посилання
+                    </button>
                 </div>
-                <textarea
-                    ref={textareaRef}
-                    name="text"
-                    placeholder="Ваш коментар * (дозволено базові HTML теги)"
-                    value={text}
-                    onChange={handleInputChange}
-                    required
-                    rows={4}
-                    style={{ width: '100%', padding: '5px', boxSizing: 'border-box', borderRadius: '0 0 4px 4px', border: '1px solid #ccc' }}
+
+                <div
+                    ref={editorRef}
+                    contentEditable
+                    style={{
+                        width: '100%',
+                        minHeight: '120px',
+                        padding: '10px',
+                        borderRadius: '6px',
+                        border: '1px solid #d1d5db',
+                        fontFamily: 'sans-serif',
+                        boxSizing: 'border-box',
+                        fontSize: '14px',
+                        backgroundColor: '#fff',
+                        outline: 'none',
+                        overflowY: 'auto',
+                        textAlign: 'left',
+                        display: 'block',
+                    }}
                 />
             </div>
 
-            {showPreview && text && (
+            {showPreview && previewContent && (
                 <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#fef08a', border: '1px dashed #eab308', borderRadius: '4px', fontSize: '14px' }}>
                     <strong>Попередній перегляд:</strong>
-                    <div style={{ marginTop: '5px', wordBreak: 'break-word' }} dangerouslySetInnerHTML={{ __html: text }} />
+                    <div style={{ marginTop: '5px', wordBreak: 'break-word' }} dangerouslySetInnerHTML={{ __html: previewContent }} />
                 </div>
             )}
 
@@ -187,7 +276,7 @@ export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCom
                     {loading ? 'Відправка...' : 'Опублікувати'}
                 </button>
 
-                <button type="button" onClick={() => setShowPreview(!showPreview)} style={{ padding: '8px 15px', backgroundColor: '#6c757d', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                <button type="button" onClick={togglePreview} style={{ padding: '8px 15px', backgroundColor: '#6c757d', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
                     {showPreview ? 'Сховати прев’ю' : 'Попередній перегляд'}
                 </button>
             </div>
