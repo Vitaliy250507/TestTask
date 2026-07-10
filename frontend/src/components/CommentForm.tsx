@@ -40,53 +40,53 @@ export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCom
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
-        setLoading(false);
-
-        if (!user.username || !user.email || !text || !captchaValue) {
-            setError('Будь ласка, заповніть усі обов’язкові поля та капчу.');
-            return;
-        }
-
         setLoading(true);
 
-        const formData = new FormData();
-        formData.append('user.username', user.username);
-        formData.append('user.email', user.email);
-        if (user.homepage) formData.append('user.homepage', user.homepage);
-
-        formData.append('text', text);
-        formData.append('captcha_key', captchaKey);
-        formData.append('captcha_value', captchaValue);
-
-        if (parentId) {
-            formData.append('parent', parentId.toString());
-        }
-        if (file) {
-            formData.append('file', file);
-        }
-
         try {
-            await api.post('comments/', formData, {
+            const formData = new FormData();
+
+            formData.append('user.username', user.username);
+            formData.append('user.email', user.email);
+            if (user.homepage) {
+                formData.append('user.homepage', user.homepage);
+            }
+
+            formData.append('text', text);
+            formData.append('captcha_key', captchaKey);
+            formData.append('captcha_value', captchaValue);
+
+            if (parentId) {
+                formData.append('parent', parentId.toString());
+            }
+
+
+            if (fileInputRef.current?.files?.[0]) {
+                formData.append('file', fileInputRef.current.files[0]);
+            }
+
+
+            const response = await api.post('comments/', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },
             });
 
-            setText('');
-            setCaptchaValue('');
-            setFile(null);
-            if (fileInputRef.current) fileInputRef.current.value = '';
+            if (response.status === 201) {
+                onCommentSuccess();
+                setText('');
+                setCaptchaValue('');
+                if (fileInputRef.current) fileInputRef.current.value = '';
+                setTriggerCaptchaRefresh(prev => !prev);
+            }
 
-            setTriggerCaptchaRefresh((prev) => !prev);
-
-            onCommentSuccess();
         } catch (err: any) {
             console.error(err);
             if (err.response?.data) {
-                const backendErrors = Object.entries(err.response.data)
-                    .map(([key, val]) => `${key}: ${Array.isArray(val) ? val.join(', ') : val}`)
-                    .join(' | ');
-                setError(backendErrors || 'Сталася помилка при відправці.');
+                const errors = err.response.data;
+                if (errors.user?.username) setError(errors.user.username[0]);
+                else if (errors.user?.email) setError(errors.user.email[0]);
+                else if (errors.captcha_value) setError(errors.captcha_value[0]);
+                else setError('Сталася помилка при збереженні коментаря.');
             } else {
                 setError('Не вдалося зв’язатися з сервером.');
             }
