@@ -9,6 +9,13 @@ interface User {
   homepage?: string;
 }
 
+interface PaginatedCommentsResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: Comment[];
+}
+
 interface Comment {
   id: number;
   user: User;
@@ -24,6 +31,11 @@ function App() {
   const [comments, setComments] = useState<Comment[]>([]);
   const [ordering, setOrdering] = useState<string>('-created_at');
   const [activeReplyId, setActiveReplyId] = useState<number | null>(null);
+
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [totalCount, setTotalCount] = useState<number>(0);
+
+  const commentsPerPage = 25;
 
   const updateCommentReplies = (items: Comment[], newReply: any): Comment[] => {
     const targetParentId = newReply.parent || newReply.parent_id;
@@ -43,10 +55,19 @@ function App() {
     });
   };
 
-  const loadComments = async (currentOrdering = ordering) => {
+  const loadComments = async (currentOrdering = ordering, page = currentPage) => {
     try {
-      const response = await api.get<Comment[]>(`comments/?ordering=${currentOrdering}`);
-      setComments(response.data);
+      console.log(`Відправляю запит на сторінку: ${page}, сортування: ${currentOrdering}`);
+
+      const response = await api.get(`comments/?ordering=${currentOrdering}&page=${page}`);
+
+      if (response.data && response.data.results) {
+        setComments(response.data.results);
+        setTotalCount(response.data.count);
+      } else {
+        setComments(response.data);
+        setTotalCount(response.data.length || 0);
+      }
     } catch (err) {
       console.error('Не вдалося завантажити коментарі:', err);
     }
@@ -58,10 +79,13 @@ function App() {
     loadComments(newOrdering);
   };
 
+  useEffect(() => {
+    loadComments(ordering, currentPage);
+  }, [ordering, currentPage]);
+
   const socketRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    // Якщо сокет уже ініціалізований — виходимо (захист від StrictMode)
     if (socketRef.current) return;
 
     const socket = new WebSocket('ws://localhost:8000/ws/comments/');
@@ -78,15 +102,27 @@ function App() {
         const hasParent = newComment.parent || newComment.parent_id;
 
         if (!hasParent) {
-          setComments((prev) => [newComment, ...prev]);
+          setTotalCount((prev) => prev + 1);
+
+          setComments((prev) => {
+            const safePrev = Array.isArray(prev) ? prev : [];
+
+            if (currentPage === 1) {
+              const updated = [newComment, ...safePrev];
+              return updated.length > 25 ? updated.slice(0, 25) : updated;
+            }
+            return safePrev;
+          });
         } else {
-          setComments((prev) => updateCommentReplies(prev, newComment));
+          setComments((prev) => {
+            const safePrev = Array.isArray(prev) ? prev : [];
+            return updateCommentReplies(safePrev, newComment);
+          });
         }
       }
     };
 
     socket.onclose = (event) => {
-      // Виводимо лог тільки якщо сокет реально впав на сервері
       if (socket.readyState === WebSocket.CLOSED) {
         console.log('WebSocket дійсно закрився на сервері з кодом:', event.code);
       }
@@ -94,13 +130,12 @@ function App() {
     };
 
     return () => {
-      // Закриваємо сокет ТІЛЬКИ якщо користувач дійсно йде зі сторінки
       if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
         socket.close();
       }
       socketRef.current = null;
     };
-  }, []); // Масив порожній
+  }, [currentPage]);
 
   return (
     <div style={{ padding: '40px 20px', fontFamily: 'sans-serif', backgroundColor: '#f3f4f6', minHeight: '100vh' }}>
@@ -120,14 +155,14 @@ function App() {
           <button onClick={() => toggleSort('created_at')}>Дата {ordering.includes('created_at') ? (ordering.startsWith('-') ? '▼' : '▲') : ''}</button>
         </div>
 
-        <div style={{ marginTop: '20px' }}>
-          {comments.map((comment) => (
+        <div className="comments-list">
+          {Array.isArray(comments) && comments.map((comment) => (
             <CommentNode
               key={comment.id}
               comment={comment}
               activeReplyId={activeReplyId}
               setActiveReplyId={setActiveReplyId}
-              onCommentSuccess={loadComments}
+              onCommentSuccess={() => loadComments(ordering, currentPage)}
             />
           ))}
         </div>
