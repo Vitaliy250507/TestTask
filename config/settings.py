@@ -26,7 +26,7 @@ SECRET_KEY = "django-insecure-$!6o&@vrgbod@w#wg7m)r@s0e!4c196l401gml&9wf7lmna-l!
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0", "web"]
 
 
 # Application definition
@@ -143,11 +143,9 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 CHANNEL_LAYERS = {
     "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "BACKEND": "channels_redis.pubsub.RedisPubSubChannelLayer",
         "CONFIG": {
-            "hosts": [("redis", 6379)],
-            "expiry": 60,
-            "capacity": 1500,
+            "hosts": ["redis://redis:6379/0"],
         },
     },
 }

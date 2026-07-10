@@ -52,9 +52,20 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ comment, activeReplyId
             {comment.file && (
                 <div style={{ marginBottom: '10px' }}>
                     {comment.file.match(/\.(jpeg|jpg|gif|png)$/i) ? (
-                        <img src={comment.file} alt="attachment" style={{ maxHeight: '120px', borderRadius: '4px' }} />
+                        <img
+                            src={comment.file.startsWith('http') ? comment.file : `http://localhost:8000${comment.file}`}
+                            alt="attachment"
+                            style={{ maxHeight: '120px', borderRadius: '4px', display: 'block' }}
+                        />
                     ) : (
-                        <a href={comment.file} target="_blank" rel="noreferrer" style={{ fontSize: '12px', color: '#2563eb' }}>Завантажити TXT</a>
+                        <a
+                            href={comment.file.startsWith('http') ? comment.file : `http://localhost:8000${comment.file}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ fontSize: '12px', color: '#2563eb' }}
+                        >
+                            Завантажити TXT
+                        </a>
                     )}
                 </div>
             )}

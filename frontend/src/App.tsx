@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { CommentForm } from './components/CommentForm';
 import { CommentNode } from './components/CommentNode';
 import { api } from './api/axios';
@@ -23,7 +23,7 @@ interface Comment {
 function App() {
   const [comments, setComments] = useState<Comment[]>([]);
   const [ordering, setOrdering] = useState<string>('-created_at');
-  const [activeReplyId, setActiveReplyId] = useState<number | null>(null); // Хто зараз коментується
+  const [activeReplyId, setActiveReplyId] = useState<number | null>(null);
 
   const updateCommentReplies = (items: Comment[], newReply: any): Comment[] => {
     const targetParentId = newReply.parent || newReply.parent_id;
@@ -58,10 +58,19 @@ function App() {
     loadComments(newOrdering);
   };
 
+  const socketRef = useRef<WebSocket | null>(null);
+
   useEffect(() => {
-    loadComments();
+    // Якщо сокет уже ініціалізований — виходимо (захист від StrictMode)
+    if (socketRef.current) return;
 
     const socket = new WebSocket('ws://localhost:8000/ws/comments/');
+    socketRef.current = socket;
+
+    socket.onopen = () => {
+      console.log('Успішно підключено до WebSocket!');
+    };
+
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.type === 'new_comment' && data.comment) {
@@ -75,8 +84,23 @@ function App() {
         }
       }
     };
-    return () => socket.close();
-  }, [ordering]);
+
+    socket.onclose = (event) => {
+      // Виводимо лог тільки якщо сокет реально впав на сервері
+      if (socket.readyState === WebSocket.CLOSED) {
+        console.log('WebSocket дійсно закрився на сервері з кодом:', event.code);
+      }
+      socketRef.current = null;
+    };
+
+    return () => {
+      // Закриваємо сокет ТІЛЬКИ якщо користувач дійсно йде зі сторінки
+      if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+        socket.close();
+      }
+      socketRef.current = null;
+    };
+  }, []); // Масив порожній
 
   return (
     <div style={{ padding: '40px 20px', fontFamily: 'sans-serif', backgroundColor: '#f3f4f6', minHeight: '100vh' }}>
