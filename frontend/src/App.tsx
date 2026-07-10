@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { CommentForm } from './components/CommentForm';
 import { CommentNode } from './components/CommentNode';
 import { api } from './api/axios';
+import axios from 'axios';
 
 interface User {
   username: string;
@@ -57,14 +58,12 @@ function App() {
 
   const loadComments = async (currentOrdering = ordering, page = currentPage) => {
     try {
-      console.log(`Відправляю запит на сторінку: ${page}, сортування: ${currentOrdering}`);
+      console.log(`Відправляю запит на сторінку: ${page}`);
 
-      const response = await api.get(`comments/?ordering=${currentOrdering}&page=${page}`);
-
+      const response = await axios.get(`http://localhost:8000/api/comments/?ordering=${currentOrdering}&page=${page}`);
 
       if (response.data && response.data.results) {
         setComments(response.data.results);
-
         setTotalCount(Number(response.data.count));
       } else {
         setComments(response.data);

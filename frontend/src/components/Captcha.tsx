@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { api } from '../api/axios';
 import { type CaptchaResponse } from '../types/captcha';
+import axios from 'axios';
 
 interface CaptchaProps {
     onCaptchaGenerated: (key: string) => void;
@@ -16,16 +16,18 @@ export const Captcha: React.FC<CaptchaProps> = ({ onCaptchaGenerated, triggerRef
         setLoading(true);
         setError(null);
         try {
-            const response = await api.get<CaptchaResponse>('captcha/');
-            if (response.data && response.data.captcha_image) {
-                setCaptcha(response.data);
-                onCaptchaGenerated(response.data.captcha_key);
-            } else {
-                throw new Error('Бекенд повернув пусту або невірну структуру капчі');
-            }
+            const response = await axios.get('http://localhost:8000/api/captcha/');
+
+            setCaptcha({
+                captcha_key: response.data.captcha_key,
+                captcha_image: response.data.captcha_image
+            });
+
+            onCaptchaGenerated(response.data.captcha_key);
+
         } catch (err) {
-            setError('Не вдалося завантажити капчу');
-            console.error(err);
+            console.error("Помилка завантаження капчі:", err);
+            setError("Не вдалося завантажити капчу");
         } finally {
             setLoading(false);
         }
@@ -35,7 +37,7 @@ export const Captcha: React.FC<CaptchaProps> = ({ onCaptchaGenerated, triggerRef
         fetchCaptcha();
     }, [triggerRefresh]);
 
-    if (error) return <div className="text-sm text-red-500">{error}</div>;
+    if (error) return <div style={{ fontSize: '14px', color: '#ef4444', marginTop: '5px' }}>{error}</div>;
 
     const getImageUrl = () => {
         if (!captcha?.captcha_image) return undefined;
@@ -45,20 +47,20 @@ export const Captcha: React.FC<CaptchaProps> = ({ onCaptchaGenerated, triggerRef
     };
 
     return (
-        <div className="flex items-center gap-4 my-2">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', margin: '8px 0' }}>
             {loading && !captcha ? (
-                <div className="text-sm text-gray-500">Завантаження капчі...</div>
+                <div style={{ fontSize: '14px', color: '#6b7280' }}>Завантаження капчі...</div>
             ) : (
                 captcha?.captcha_image && (
                     <div
-                        className={`cursor-pointer ${loading ? 'opacity-50' : ''}`}
+                        style={{ cursor: 'pointer', opacity: loading ? 0.5 : 1 }}
                         onClick={loading ? undefined : fetchCaptcha}
                         title="Клікніть, щоб оновити"
                     >
                         <img
                             src={getImageUrl()}
                             alt="CAPTCHA"
-                            className="border rounded h-12"
+                            style={{ border: '1px solid #d1d5db', borderRadius: '4px', height: '48px' }}
                         />
                     </div>
                 )
@@ -68,7 +70,15 @@ export const Captcha: React.FC<CaptchaProps> = ({ onCaptchaGenerated, triggerRef
                 type="button"
                 disabled={loading}
                 onClick={fetchCaptcha}
-                className={`text-xs text-blue-500 hover:underline ${loading ? 'text-gray-400 cursor-not-allowed' : ''}`}
+                style={{
+                    padding: '6px 12px',
+                    fontSize: '13px',
+                    color: '#1d4ed8',
+                    backgroundColor: '#e5e7eb',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: loading ? 'not-allowed' : 'pointer'
+                }}
             >
                 {loading ? 'Оновлення...' : 'Оновити картинку'}
             </button>

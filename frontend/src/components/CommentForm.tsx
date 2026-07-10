@@ -1,7 +1,8 @@
-import React, { useState, useRef } from 'react';
-import { api } from '../api/axios';
+import React, { useState, useRef, useEffect } from 'react';
 import { Captcha } from './Captcha';
 import { type UserProfile } from '../types/comment';
+import { jwtDecode } from 'jwt-decode';
+import axios from 'axios';
 
 interface CommentFormProps {
     parentId?: number | null;
@@ -9,7 +10,15 @@ interface CommentFormProps {
     onCommentSuccess: () => void;
 }
 
+interface JWTUserData {
+    user_id: number;
+    username: string;
+    email: string;
+    exp: number;
+}
+
 export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCommentSuccess, onReplyCancel }) => {
+    // Працюємо виключно з цим стейтом профайлу користувача
     const [user, setUser] = useState<UserProfile>({ username: '', email: '', homepage: '' });
     const [captchaValue, setCaptchaValue] = useState<string>('');
     const [captchaKey, setCaptchaKey] = useState<string>('');
@@ -22,6 +31,30 @@ export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCom
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const editorRef = useRef<HTMLDivElement>(null);
+
+    // --- ОДИН ОПТИМІЗОВАНИЙ ЕФЕКТ ДЛЯ ЗАВАНТАЖЕННЯ JWT СЕСІЇ ---
+    useEffect(() => {
+        const accessToken = localStorage.getItem('access_token');
+        if (accessToken) {
+            try {
+                const decoded = jwtDecode<JWTUserData>(accessToken);
+
+                if (decoded.exp * 1000 > Date.now()) {
+                    setUser({
+                        username: decoded.username,
+                        email: decoded.email,
+                        homepage: localStorage.getItem('user_homepage') || ''
+                    });
+                    console.log('Дані користувача автоматично підтягнуто з JWT у стейт user!');
+                } else {
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('refresh_token');
+                }
+            } catch (error) {
+                console.error('Помилка декодування JWT:', error);
+            }
+        }
+    }, []);
 
     const handleFormatting = (command: 'bold' | 'italic' | 'createLink' | 'formatBlock') => {
         const selection = window.getSelection();
@@ -38,24 +71,15 @@ export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCom
 
             const selectedText = selection.toString();
             const range = selection.getRangeAt(0);
-
             range.deleteContents();
 
             const codeElement = document.createElement('code');
-
             codeElement.style.fontFamily = "Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace";
             codeElement.style.fontSize = '14px';
-
             codeElement.style.display = 'inline';
-            codeElement.style.background = 'transparent';
-            codeElement.style.backgroundColor = 'transparent';
-            codeElement.style.color = 'inherit';
-            codeElement.style.padding = '0';
-
             codeElement.innerText = selectedText;
 
             range.insertNode(codeElement);
-
             range.setStartAfter(codeElement);
             range.setEndAfter(codeElement);
 
@@ -64,10 +88,6 @@ export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCom
             selection.collapseToEnd();
         } else {
             document.execCommand(command, false);
-        }
-
-        if (command !== 'formatBlock' && selection && selection.rangeCount > 0) {
-            selection.collapseToEnd();
         }
 
         editorRef.current?.focus();
@@ -98,25 +118,27 @@ export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCom
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
-        setLoading(false);
+        setLoading(true);
 
         let htmlText = editorRef.current?.innerHTML || '';
 
         if (htmlText === '<br>' || !htmlText.trim()) {
             setError('Поле коментаря не може бути порожнім.');
+            setLoading(false);
             return;
         }
 
         htmlText = htmlText.replace(/<b>/g, '<strong>').replace(/<\/b>/g, '</strong>');
         htmlText = htmlText.replace(/<em>/g, '<i>').replace(/<\/em>/g, '</i>');
 
-        setLoading(true);
-
         try {
             const formData = new FormData();
             formData.append('user.username', user.username);
             formData.append('user.email', user.email);
-            if (user.homepage) formData.append('user.homepage', user.homepage);
+            if (user.homepage) {
+                formData.append('user.homepage', user.homepage);
+                localStorage.setItem('user_homepage', user.homepage); // збережемо лінку про всяк випадок
+            }
 
             formData.append('text', htmlText);
             formData.append('captcha_key', captchaKey);
@@ -130,40 +152,44 @@ export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCom
                 formData.append('file', fileInputRef.current.files[0]);
             }
 
-            const response = await api.post('comments/', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' },
+            const response = await axios.post('http://localhost:8000/api/comments/', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                },
             });
 
             if (response.status === 201) {
+                if (response.data && response.data.tokens) {
+                    localStorage.setItem('access_token', response.data.tokens.access);
+                    localStorage.setItem('refresh_token', response.data.tokens.refresh);
+                }
+
                 onCommentSuccess();
 
                 if (editorRef.current) {
                     editorRef.current.innerHTML = '';
                     editorRef.current.focus();
-                    const selection = window.getSelection();
-                    if (selection) {
-                        const range = document.createRange();
-                        range.selectNodeContents(editorRef.current);
-                        range.collapse(true);
-                        selection.removeAllRanges();
-                        selection.addRange(range);
-                    }
                 }
 
                 setCaptchaValue('');
                 setShowPreview(false);
                 setPreviewContent('');
                 if (fileInputRef.current) fileInputRef.current.value = '';
+                setFile(null);
+
+                // Тригеримо оновлення капчі для наступного повідомлення
                 setTriggerCaptchaRefresh(prev => !prev);
 
                 if (onReplyCancel) onReplyCancel();
             }
         } catch (err: any) {
             console.error(err);
-            if (err.response?.data) {
+            if (err.response && err.response.data) {
+                console.log("Реальна помилка від бекенду:", err.response.data);
                 const errors = err.response.data;
                 if (errors.user?.username) setError(errors.user.username[0]);
                 else if (errors.user?.email) setError(errors.user.email[0]);
+                else if (errors.captcha_key) setError("Помилка сесії капчі. Оновіть картинку.");
                 else if (errors.captcha_value) setError(errors.captcha_value[0]);
                 else if (errors.text) setError(errors.text[0]);
                 else setError('Сталася помилка при збереженні коментаря.');
@@ -202,34 +228,10 @@ export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCom
 
             <div style={{ marginBottom: '10px' }}>
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
-                    <button
-                        type="button"
-                        onMouseDown={(e) => { e.preventDefault(); handleFormatting('bold'); }}
-                        style={{ padding: '6px 12px', fontSize: '13px', fontWeight: 'bold', color: '#1d4ed8', backgroundColor: 'rgb(163, 163, 163)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                    >
-                        Жирний
-                    </button>
-                    <button
-                        type="button"
-                        onMouseDown={(e) => { e.preventDefault(); handleFormatting('italic'); }}
-                        style={{ padding: '6px 12px', fontSize: '13px', fontStyle: 'italic', color: '#1d4ed8', backgroundColor: 'rgb(163, 163, 163)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                    >
-                        Курсив
-                    </button>
-                    <button
-                        type="button"
-                        onMouseDown={(e) => { e.preventDefault(); handleFormatting('formatBlock'); }}
-                        style={{ padding: '6px 12px', fontSize: '13px', fontFamily: 'monospace', color: '#1d4ed8', backgroundColor: 'rgb(163, 163, 163)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                    >
-                        Код
-                    </button>
-                    <button
-                        type="button"
-                        onMouseDown={(e) => { e.preventDefault(); handleFormatting('createLink'); }}
-                        style={{ padding: '6px 12px', fontSize: '13px', color: '#1d4ed8', backgroundColor: 'rgb(163, 163, 163)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                    >
-                        Посилання
-                    </button>
+                    <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormatting('bold'); }} style={{ padding: '6px 12px', fontSize: '13px', fontWeight: 'bold', color: '#1d4ed8', backgroundColor: 'rgb(163, 163, 163)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Жирний</button>
+                    <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormatting('italic'); }} style={{ padding: '6px 12px', fontSize: '13px', fontStyle: 'italic', color: '#1d4ed8', backgroundColor: 'rgb(163, 163, 163)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Курсив</button>
+                    <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormatting('formatBlock'); }} style={{ padding: '6px 12px', fontSize: '13px', fontFamily: 'monospace', color: '#1d4ed8', backgroundColor: 'rgb(163, 163, 163)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Код</button>
+                    <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormatting('createLink'); }} style={{ padding: '6px 12px', fontSize: '13px', color: '#1d4ed8', backgroundColor: 'rgb(163, 163, 163)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Посилання</button>
                 </div>
 
                 <div

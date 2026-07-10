@@ -9,6 +9,8 @@ from PIL import Image
 from django.core.cache import cache
 from .tasks import optimize_comment_image
 
+from rest_framework_simplejwt.tokens import RefreshToken
+
 
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
@@ -23,8 +25,25 @@ class UserProfileSerializer(serializers.ModelSerializer):
         return value
 
 
+class UserCommentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserModel
+        fields = ["username", "email", "homepage"]
+        extra_kwargs = {
+            "username": {"validators": []},
+            "email": {"validators": []},
+        }
+
+    def validate_username(self, value):
+        if not re.match(r"^[a-zA-Z0-9]+$", value):
+            raise serializers.ValidationError(
+                "Username може містити лише латинські літери та цифри."
+            )
+        return value
+
+
 class CommentCreateSerializer(serializers.ModelSerializer):
-    user = UserProfileSerializer()
+    user = UserCommentSerializer()
     captcha_key = serializers.CharField(write_only=True)
     captcha_value = serializers.CharField(write_only=True)
 
@@ -67,23 +86,50 @@ class CommentCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         user_data = validated_data.pop("user")
-        user, _ = UserModel.objects.get_or_create(
-            username=user_data["username"],
+        username = user_data["username"]
+        email = user_data["email"]
+        homepage = user_data.get("homepage", "")
+
+        user, created = UserModel.objects.get_or_create(
+            username=username,
             defaults={
-                "email": user_data["email"],
-                "homepage": user_data.get("homepage", ""),
+                "email": email,
+                "homepage": homepage,
             },
         )
+
+        if not created and user.email.lower() != email.lower():
+            raise serializers.ValidationError(
+                {
+                    "user": {
+                        "username": "Користувач з таким нікнеймом вже існує з іншою поштою."
+                    }
+                }
+            )
 
         comment = CommentModel.objects.create(user=user, **validated_data)
 
         if comment.file:
             optimize_comment_image.delay(comment.file.name)
 
+        refresh = RefreshToken.for_user(user)
+        refresh["username"] = user.username
+        refresh["email"] = user.email
+
+        self.context["tokens"] = {
+            "refresh": str(refresh),
+            "access": str(refresh.access_token),
+        }
+
         return comment
 
-    def validate_file(self, file_obj):
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        if "tokens" in self.context:
+            representation["tokens"] = self.context["tokens"]
+        return representation
 
+    def validate_file(self, file_obj):
         if not file_obj:
             return file_obj
 
@@ -117,7 +163,6 @@ class CommentCreateSerializer(serializers.ModelSerializer):
                     None,
                 )
             return file_obj
-
         else:
             raise serializers.ValidationError(
                 "Дозволені формати файлів: JPG, GIF, PNG, TXT."
