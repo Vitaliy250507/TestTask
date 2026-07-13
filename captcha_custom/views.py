@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
+from django_redis import get_redis_connection
 
 
 class CaptchaGenerateView(APIView):
@@ -18,10 +19,11 @@ class CaptchaGenerateView(APIView):
         captcha_text = "".join(
             random.choices(string.ascii_uppercase + string.digits, k=4)
         )
-
         captcha_key = str(uuid.uuid4())
-        cache.set(f"captcha_{captcha_key}", captcha_text, timeout=300)
+        redis_key = f"captcha_{captcha_key}"
 
+        con = get_redis_connection("default")
+        con.setex(redis_key, 300, captcha_text)
         width, height = 120, 45
         image = Image.new("RGB", (width, height), color=(240, 240, 240))
         draw = ImageDraw.Draw(image)
