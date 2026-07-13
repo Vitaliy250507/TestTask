@@ -69,15 +69,25 @@ export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCom
 
             const selectedText = selection.toString();
             const range = selection.getRangeAt(0);
+
             range.deleteContents();
 
             const codeElement = document.createElement('code');
-            codeElement.style.fontFamily = "Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace";
+
+            codeElement.style.fontFamily = "'Courier New', Courier, monospace";
             codeElement.style.fontSize = '14px';
             codeElement.style.display = 'inline';
+
+            codeElement.style.background = 'none';
+            codeElement.style.backgroundColor = 'transparent';
+            codeElement.style.color = 'inherit';
+            codeElement.style.padding = '0';
+            codeElement.style.border = 'none';
+
             codeElement.innerText = selectedText;
 
             range.insertNode(codeElement);
+
             range.setStartAfter(codeElement);
             range.setEndAfter(codeElement);
 
@@ -215,7 +225,7 @@ export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCom
     };
 
     return (
-        <form onSubmit={handleSubmit} style={{ border: '1px solid #ccc', padding: '15px', borderRadius: '8px', maxWidth: '500px', margin: '10px 0', backgroundColor: '#fff' }}>
+        <form onSubmit={handleSubmit} style={{ border: '1px solid #ccc', padding: '15px', borderRadius: '8px', maxWidth: '500px', margin: '40px auto', backgroundColor: '#fff' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 style={{ margin: '5px 0' }}>{parentId ? 'Відповісти на коментар' : 'Залишити коментар'}</h3>
                 {parentId && (
@@ -240,7 +250,7 @@ export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCom
             </div>
 
             <div style={{ marginBottom: '10px' }}>
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
                     <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormatting('bold'); }} style={{ padding: '6px 12px', fontSize: '13px', fontWeight: 'bold', color: '#1d4ed8', backgroundColor: 'rgb(163, 163, 163)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Жирний</button>
                     <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormatting('italic'); }} style={{ padding: '6px 12px', fontSize: '13px', fontStyle: 'italic', color: '#1d4ed8', backgroundColor: 'rgb(163, 163, 163)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Курсив</button>
                     <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormatting('formatBlock'); }} style={{ padding: '6px 12px', fontSize: '13px', fontFamily: 'monospace', color: '#1d4ed8', backgroundColor: 'rgb(163, 163, 163)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Код</button>
@@ -280,10 +290,10 @@ export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCom
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".jpg,.jpeg,.png,.gif,.txt" />
             </div>
 
-            <div style={{ marginBottom: '15px' }}>
-                <label style={{ fontSize: '12px', display: 'block', marginBottom: '3px' }}>Введіть символи з картинки *:</label>
+            <div style={{ marginBottom: '15px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <label style={{ fontSize: '12px', display: 'block', marginBottom: '3px', textAlign: 'center' }}>Введіть символи з картинки *:</label>
                 <Captcha onCaptchaGenerated={setCaptchaKey} triggerRefresh={triggerCaptchaRefresh} />
-                <input type="text" name="captchaValue" placeholder="Капча" value={captchaValue} onChange={handleInputChange} required style={{ width: '120px', padding: '5px', marginTop: '5px', display: 'block' }} />
+                <input type="text" name="captchaValue" placeholder="Капча" value={captchaValue} onChange={handleInputChange} required style={{ width: '120px', padding: '5px', marginTop: '5px', display: 'block', textAlign: 'center', boxSizing: 'border-box' }} />
             </div>
 
             <div style={{ display: 'flex', gap: '10px' }}>
@@ -291,7 +301,7 @@ export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCom
                     {loading ? 'Відправка...' : 'Опублікувати'}
                 </button>
 
-                <button type="button" onClick={togglePreview} style={{ padding: '8px 15px', backgroundColor: '#6c757d', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                <button type="button" onClick={togglePreview} style={{ padding: '8px 15px', backgroundColor: '#6c757d', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', marginLeft: 'auto' }}>
                     {showPreview ? 'Сховати прев’ю' : 'Попередній перегляд'}
                 </button>
             </div>
