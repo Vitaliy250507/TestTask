@@ -30,7 +30,7 @@ export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCom
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const editorRef = useRef<HTMLDivElement>(null);
-
+    const apiUrl = import.meta.env.VITE_API_URL || '';
     useEffect(() => {
         const accessToken = localStorage.getItem('access_token');
         if (accessToken) {
@@ -103,6 +103,10 @@ export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCom
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
+
+        setLoading(false);
+        setError(null);
+
         if (name in user) {
             setUser((prev) => ({ ...prev, [name]: value }));
         } else if (name === 'captchaValue') {
@@ -126,13 +130,11 @@ export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCom
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
-        setLoading(true);
 
         let htmlText = editorRef.current?.innerHTML || '';
 
         if (htmlText === '<br>' || !htmlText.trim()) {
             setError('Поле коментаря не може бути порожнім.');
-            setLoading(false);
             return;
         }
 
@@ -151,6 +153,8 @@ export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCom
                 return;
             }
         }
+
+        setLoading(true);
 
         htmlText = htmlText.replace(/<b>/g, '<strong>').replace(/<\/b>/g, '</strong>');
         htmlText = htmlText.replace(/<em>/g, '<i>').replace(/<\/em>/g, '</i>');
@@ -176,7 +180,7 @@ export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCom
                 formData.append('file', fileInputRef.current.files[0]);
             }
 
-            const response = await axios.post('http://localhost:8000/api/comments/', formData, {
+            const response = await axios.post(`${apiUrl}/api/comments/`, formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data'
                 },
