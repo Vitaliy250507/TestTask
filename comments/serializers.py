@@ -75,18 +75,29 @@ class CommentCreateSerializer(serializers.ModelSerializer):
 
         redis_key = f"captcha_{captcha_key}"
 
+        # 📝 ДЕБАГ ЛОГИ
+        print("--- ДЕБАГ КАПЧІ ---")
+        print("Отримано captcha_key з фронтенду:", captcha_key)
+        print("Введено користувачем captcha_value:", captcha_value)
+
         from django_redis import get_redis_connection
 
         con = get_redis_connection("default")
 
+        # Отримуємо значення з Redis
         correct_value_bytes = con.get(redis_key)
+        print("Значення в Redis (bytes):", correct_value_bytes)
 
         if not correct_value_bytes:
+            print("ПОМИЛКА: Ключ не знайдено в Redis!")
+            print("-------------------")
             raise serializers.ValidationError(
                 {"captcha_value": "Капча застаріла або не існує. Оновіть сторінку."}
             )
 
         correct_value = correct_value_bytes.decode("utf-8")
+        print("Декодоване значення з Redis:", correct_value)
+        print("-------------------")
 
         if captcha_value.upper() != correct_value.upper():
             raise serializers.ValidationError(
@@ -94,7 +105,6 @@ class CommentCreateSerializer(serializers.ModelSerializer):
             )
 
         con.delete(redis_key)
-
         data.pop("captcha_key")
         data.pop("captcha_value")
 
