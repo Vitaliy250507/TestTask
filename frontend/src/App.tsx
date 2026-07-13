@@ -86,54 +86,93 @@ function App() {
   const socketRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    if (socketRef.current) return;
+    let reconnectTimeout: number;
+    let pingInterval: number;
+    let isComponentMounted = true;
 
-    const socket = new WebSocket('wss://comments-backend-0p8a.onrender.com/ws/comments/');
-    socketRef.current = socket;
+    const connectWebSocket = () => {
+      if (!isComponentMounted) return;
 
-    socket.onopen = () => {
-      console.log('Успішно підключено до WebSocket!');
-    };
+      if (socketRef.current) {
+        socketRef.current.close();
+      }
 
-    socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === 'new_comment' && data.comment) {
-        const newComment = data.comment;
-        const hasParent = newComment.parent || newComment.parent_id;
+      const socket = new WebSocket('wss://comments-backend-0p8a.onrender.com/ws/comments/');
+      socketRef.current = socket;
 
-        if (!hasParent) {
-          setTotalCount((prev) => prev + 1);
+      socket.onopen = () => {
+        console.log('Успішно підключено до WebSocket!');
 
-          setComments((prev) => {
-            const safePrev = Array.isArray(prev) ? prev : [];
+        clearInterval(pingInterval);
+        pingInterval = setInterval(() => {
+          if (socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ type: 'ping' }));
+          }
+        }, 15000);
+      };
 
-            if (currentPage === 1) {
-              const updated = [newComment, ...safePrev];
-              return updated.length > 25 ? updated.slice(0, 25) : updated;
-            }
-            return safePrev;
-          });
-        } else {
-          setComments((prev) => {
-            const safePrev = Array.isArray(prev) ? prev : [];
-            return updateCommentReplies(safePrev, newComment);
-          });
+      socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'ping') return;
+
+        if (data.type === 'new_comment' && data.comment) {
+          const newComment = data.comment;
+          const hasParent = newComment.parent || newComment.parent_id;
+
+          if (!hasParent) {
+            setTotalCount((prev) => prev + 1);
+
+            setComments((prev) => {
+              const safePrev = Array.isArray(prev) ? prev : [];
+
+              if (currentPage === 1) {
+                const updated = [newComment, ...safePrev];
+                return updated.length > 25 ? updated.slice(0, 25) : updated;
+              }
+              return safePrev;
+            });
+          } else {
+            setComments((prev) => {
+              const safePrev = Array.isArray(prev) ? prev : [];
+              return updateCommentReplies(safePrev, newComment);
+            });
+          }
         }
-      }
+      };
+
+      socket.onclose = (event) => {
+        console.log('WebSocket закрився з кодом:', event.code);
+        clearInterval(pingInterval);
+        socketRef.current = null;
+
+        if (isComponentMounted) {
+          console.log('Спробуємо перепідключитись до WebSocket за 3 секунди...');
+          clearTimeout(reconnectTimeout);
+          reconnectTimeout = setTimeout(() => {
+            connectWebSocket();
+          }, 3000);
+        }
+      };
+
+      socket.onerror = (error) => {
+        console.error('Помилка WebSocket:', error);
+        socket.close();
+      };
     };
 
-    socket.onclose = (event) => {
-      if (socket.readyState === WebSocket.CLOSED) {
-        console.log('WebSocket дійсно закрився на сервері з кодом:', event.code);
-      }
-      socketRef.current = null;
-    };
+    connectWebSocket();
 
     return () => {
-      if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
-        socket.close();
+      isComponentMounted = false;
+      clearInterval(pingInterval);
+      clearTimeout(reconnectTimeout);
+
+      if (socketRef.current) {
+        if (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING) {
+          socketRef.current.close();
+        }
+        socketRef.current = null;
       }
-      socketRef.current = null;
     };
   }, [currentPage]);
 
