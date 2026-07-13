@@ -97,7 +97,13 @@ function App() {
         socketRef.current.close();
       }
 
-      const socket = new WebSocket('wss://comments-backend-0p8a.onrender.com/ws/comments/');
+      const backendUrl = import.meta.env.VITE_API_URL;
+
+      const wsUrl = backendUrl
+        ? `${backendUrl.replace('https://', 'wss://')}/ws/comments/`
+        : 'ws://localhost:8000/ws/comments/';
+
+      const socket = new WebSocket(wsUrl);
       socketRef.current = socket;
 
       socket.onopen = () => {
