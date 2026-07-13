@@ -2,6 +2,12 @@ from django.urls import reverse
 from django.core.cache import cache
 from rest_framework import status
 from rest_framework.test import APITestCase
+from django.test import TestCase
+from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
+
+# Замініть на ваш правильний імпорт серіалізатора
+from comments.serializers import CommentCreateSerializer
 from .models import CommentModel, UserModel
 
 
@@ -98,3 +104,60 @@ class CommentAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]["text"], "I am a root comment")
+
+
+class CommentXHTMLValidationTestCase(TestCase):
+    def setUp(self):
+        self.base_data = {
+            "user": {
+                "username": "testuser",
+                "email": "test@example.com",
+                "homepage": "https://example.com",
+            },
+            "captcha_key": "mock_key",
+            "captcha_value": "mock_value",
+            "parent": None,
+        }
+
+    def test_valid_xhtml_text_passes(self):
+        """Правильно вкладені та закриті теги повинні успішно проходити валідацію"""
+        data = self.base_data.copy()
+        data["text"] = (
+            'Привіт, <strong><i>це валідний</i></strong> XHTML код з посиланням <a href="http://test.com">link</a>.'
+        )
+
+        serializer = CommentCreateSerializer(data=data)
+
+        try:
+            cleaned_text = serializer.validate_text(data["text"])
+            self.assertEqual(cleaned_text, data["text"])
+        except ValidationError:
+            self.fail(
+                "serializer.validate_text() підняв ValidationError на абсолютно валідному XHTML коді!"
+            )
+
+    def test_overlapping_tags_fails(self):
+        """Перехресні теги <strong><i>...</strong></i> повинні викликати помилку валідації XHTML"""
+        data = self.base_data.copy()
+        data["text"] = (
+            "Текст з <strong><i>неправильним перехрещенням</strong></i> тегів."
+        )
+
+        serializer = CommentCreateSerializer(data=data)
+
+        with self.assertRaises(ValidationError) as context:
+            serializer.validate_text(data["text"])
+
+        self.assertIn("Некоректний HTML/XHTML код", str(context.exception))
+
+    def test_unclosed_tag_fails(self):
+        """Незакритий тег, що ламає дерево XML, повинен викликати помилку валідації"""
+        data = self.base_data.copy()
+        data["text"] = "Забули закрити <code> тег розмітки."
+
+        serializer = CommentCreateSerializer(data=data)
+
+        with self.assertRaises(ValidationError) as context:
+            serializer.validate_text(data["text"])
+
+        self.assertIn("Некоректний HTML/XHTML код", str(context.exception))

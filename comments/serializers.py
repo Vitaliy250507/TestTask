@@ -8,7 +8,7 @@ from django.core.files.uploadedfile import InMemoryUploadedFile
 from PIL import Image
 from django.core.cache import cache
 from .tasks import optimize_comment_image
-
+import xml.etree.ElementTree as ET
 from rest_framework_simplejwt.tokens import RefreshToken
 
 
@@ -55,9 +55,18 @@ class CommentCreateSerializer(serializers.ModelSerializer):
         allowed_tags = ["a", "code", "i", "strong"]
         allowed_attributes = {"a": ["href", "title"]}
 
+        wrapped_text = f"<div>{value}</div>"
+        try:
+            ET.fromstring(wrapped_text)
+        except ET.ParseError:
+            raise serializers.ValidationError(
+                "Некоректний HTML/XHTML код. Перевірте правильність закриття та вкладеності тегів."
+            )
+
         cleaned_text = bleach.clean(
             value, tags=allowed_tags, attributes=allowed_attributes, strip=True
         )
+
         return cleaned_text
 
     def validate(self, data):
