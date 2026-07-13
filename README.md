@@ -54,14 +54,15 @@
     ```bash
     docker-compose up --build
 3. Після завершення збирання система автоматично запустить та зв'яже між собою:
-    Frontend (React + Vite) — http://localhost:5173
-    Backend API (Django REST Framework) — http://localhost:8000
-    Database (PostgreSQL) — порт 5432
-    Cache & Broker (Redis) — порт 6379
-    Task Queue (Celery Worker) — фоновий моніторинг завдань
+   - **Frontend (React + Vite)** — http://localhost:5173
+   - **Backend API (Django REST Framework)** — http://localhost:8000
+   - **Database (PostgreSQL)** — порт 5432
+   - **Cache & Broker (Redis)** — порт 6379
+   - **Task Queue (Celery Worker)** — фоновий моніторинг завдань
 
 ## Запуск Unit-тестів
+
 Для перевірки логіки XHTML валідації тегів та обробки ключових винятків на бекенді, виконайте команду в терміналі при запущених контейнерах:
-    ```bash
-    docker-compose exec web python manage.py test
-    
+
+```bash
+docker-compose exec web python manage.py test
