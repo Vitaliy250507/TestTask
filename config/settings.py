@@ -145,11 +145,15 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 
+REDIS_URL = os.environ.get("REDIS_URL", "redis://redis:6379")
+
+redis_host = REDIS_URL if REDIS_URL.endswith("/0") else f"{REDIS_URL}/0"
+
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.pubsub.RedisPubSubChannelLayer",
         "CONFIG": {
-            "hosts": ["redis://redis:6379/0"],
+            "hosts": [redis_host],
         },
     },
 }
@@ -157,7 +161,7 @@ CHANNEL_LAYERS = {
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://redis:6379/1",
+        "LOCATION": os.environ.get("REDIS_URL", "redis://redis:6379"),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         },
