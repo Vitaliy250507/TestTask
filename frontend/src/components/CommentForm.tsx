@@ -30,7 +30,6 @@ export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCom
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const editorRef = useRef<HTMLDivElement>(null);
-    const apiUrl = import.meta.env.VITE_API_URL || '';
 
     const API_BASE_URL = window.location.hostname === 'localhost'
         ? 'http://localhost:8000'
