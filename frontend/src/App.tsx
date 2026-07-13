@@ -88,7 +88,7 @@ function App() {
   useEffect(() => {
     if (socketRef.current) return;
 
-    const socket = new WebSocket('ws://localhost:8000/ws/comments/');
+    const socket = new WebSocket('wss://comments-backend-0p8a.onrender.com/ws/comments/');
     socketRef.current = socket;
 
     socket.onopen = () => {
