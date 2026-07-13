@@ -9,6 +9,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.cache import cache
 from django.conf import settings
 from rest_framework.filters import OrderingFilter
+from rest_framework.permissions import AllowAny
 
 
 CACHE_KEY_COMMENTS = "comments_tree_cache"
@@ -25,6 +26,7 @@ class CommentListCreateView(generics.ListCreateAPIView):
     ordering_fields = ["user__username", "user__email", "created_at"]
     ordering = ["-created_at"]
     pagination_class = CommentPagination
+    permission_classes = [AllowAny]
 
     def get_queryset(self):
         return CommentModel.objects.filter(parent__isnull=True).select_related("user")
