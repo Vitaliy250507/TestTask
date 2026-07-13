@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { CommentForm } from './CommentForm';
+import API_BASE_URL from '../api/axios';
+
 
 interface User {
     username: string;
@@ -53,9 +55,9 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ comment, activeReplyId
                 <div style={{ marginBottom: '10px' }}>
                     {comment.file.match(/\.(jpeg|jpg|gif|png)$/i) ? (
                         <img
-                            src={comment.file.startsWith('http') ? comment.file : `http://localhost:8000${comment.file}`}
+                            src={comment.file.startsWith('http') ? comment.file : `${API_BASE_URL}${comment.file}`}
                             alt="attachment"
-                            onClick={() => comment.file && setActiveLightboxImage(comment.file.startsWith('http') ? comment.file : `http://localhost:8000${comment.file}`)}
+                            onClick={() => comment.file && setActiveLightboxImage(comment.file.startsWith('http') ? comment.file : `${API_BASE_URL}${comment.file}`)}
                             style={{
                                 maxHeight: '120px',
                                 borderRadius: '4px',
@@ -68,7 +70,7 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ comment, activeReplyId
                         />
                     ) : (
                         <a
-                            href={comment.file.startsWith('http') ? comment.file : `http://localhost:8000${comment.file}`}
+                            href={comment.file.startsWith('http') ? comment.file : `${API_BASE_URL}${comment.file}`}
                             target="_blank"
                             rel="noreferrer"
                             style={{ fontSize: '12px', color: '#2563eb' }}

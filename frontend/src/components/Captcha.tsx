@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { type CaptchaResponse } from '../types/captcha';
 import axios from 'axios';
+import API_BASE_URL from '../api/axios';
 
 interface CaptchaProps {
     onCaptchaGenerated: (key: string) => void;
@@ -16,7 +17,7 @@ export const Captcha: React.FC<CaptchaProps> = ({ onCaptchaGenerated, triggerRef
         setLoading(true);
         setError(null);
         try {
-            const response = await axios.get('http://localhost:8000/api/captcha/');
+            const response = await axios.get(`${API_BASE_URL}/api/captcha/`);
 
             setCaptcha({
                 captcha_key: response.data.captcha_key,
@@ -43,7 +44,7 @@ export const Captcha: React.FC<CaptchaProps> = ({ onCaptchaGenerated, triggerRef
         if (!captcha?.captcha_image) return undefined;
         return captcha.captcha_image.startsWith('data:')
             ? captcha.captcha_image
-            : `http://localhost:8000${captcha.captcha_image}`;
+            : `${API_BASE_URL}${captcha.captcha_image}`;
     };
 
     return (

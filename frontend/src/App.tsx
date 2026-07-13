@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { CommentForm } from './components/CommentForm';
 import { CommentNode } from './components/CommentNode';
 import axios from 'axios';
+import API_BASE_URL from './api/axios';
 
 interface User {
   username: string;
@@ -59,7 +60,7 @@ function App() {
     try {
       console.log(`Відправляю запит на сторінку: ${page}`);
 
-      const response = await axios.get(`http://localhost:8000/api/comments/?ordering=${currentOrdering}&page=${page}`);
+      const response = await axios.get(`${API_BASE_URL}/api/comments/?ordering=${currentOrdering}&page=${page}`);
 
       if (response.data && response.data.results) {
         setComments(response.data.results);
