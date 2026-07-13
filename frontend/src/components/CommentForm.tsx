@@ -185,7 +185,7 @@ export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCom
                 formData.append('file', fileInputRef.current.files[0]);
             }
 
-            const response = await axios.post(`${apiUrl}/api/comments/`, formData, {
+            const response = await axios.post(`${API_BASE_URL}/api/comments/`, formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data'
                 },
