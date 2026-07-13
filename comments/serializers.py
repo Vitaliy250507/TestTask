@@ -10,6 +10,8 @@ from django.core.cache import cache
 from .tasks import optimize_comment_image
 import xml.etree.ElementTree as ET
 from rest_framework_simplejwt.tokens import RefreshToken
+import os
+import redis
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -75,36 +77,25 @@ class CommentCreateSerializer(serializers.ModelSerializer):
 
         redis_key = f"captcha_{captcha_key}"
 
-        # 📝 ДЕБАГ ЛОГИ
-        print("--- ДЕБАГ КАПЧІ ---")
-        print("Отримано captcha_key з фронтенду:", captcha_key)
-        print("Введено користувачем captcha_value:", captcha_value)
+        redis_url = os.environ.get("REDIS_URL", "redis://redis:6379")
+        r = redis.Redis.from_url(redis_url)
 
-        from django_redis import get_redis_connection
-
-        con = get_redis_connection("default")
-
-        # Отримуємо значення з Redis
-        correct_value_bytes = con.get(redis_key)
-        print("Значення в Redis (bytes):", correct_value_bytes)
+        correct_value_bytes = r.get(redis_key)
 
         if not correct_value_bytes:
-            print("ПОМИЛКА: Ключ не знайдено в Redis!")
-            print("-------------------")
             raise serializers.ValidationError(
                 {"captcha_value": "Капча застаріла або не існує. Оновіть сторінку."}
             )
 
         correct_value = correct_value_bytes.decode("utf-8")
-        print("Декодоване значення з Redis:", correct_value)
-        print("-------------------")
 
         if captcha_value.upper() != correct_value.upper():
             raise serializers.ValidationError(
                 {"captcha_value": "Невірний код з картинки."}
             )
 
-        con.delete(redis_key)
+        r.delete(redis_key)
+
         data.pop("captcha_key")
         data.pop("captcha_value")
 

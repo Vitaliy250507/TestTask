@@ -1,5 +1,7 @@
 import random
 import string
+import os
+import redis
 import uuid
 import base64
 from io import BytesIO
@@ -22,8 +24,12 @@ class CaptchaGenerateView(APIView):
         captcha_key = str(uuid.uuid4())
         redis_key = f"captcha_{captcha_key}"
 
-        con = get_redis_connection("default")
-        con.setex(redis_key, 300, captcha_text)
+        redis_url = os.environ.get("REDIS_URL", "redis://redis:6379")
+
+        r = redis.Redis.from_url(redis_url)
+
+        r.setex(redis_key, 300, captcha_text)
+
         width, height = 120, 45
         image = Image.new("RGB", (width, height), color=(240, 240, 240))
         draw = ImageDraw.Draw(image)
