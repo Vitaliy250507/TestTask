@@ -18,7 +18,6 @@ interface JWTUserData {
 }
 
 export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCommentSuccess, onReplyCancel }) => {
-    // Працюємо виключно з цим стейтом профайлу користувача
     const [user, setUser] = useState<UserProfile>({ username: '', email: '', homepage: '' });
     const [captchaValue, setCaptchaValue] = useState<string>('');
     const [captchaKey, setCaptchaKey] = useState<string>('');
@@ -32,7 +31,6 @@ export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCom
     const fileInputRef = useRef<HTMLInputElement>(null);
     const editorRef = useRef<HTMLDivElement>(null);
 
-    // --- ОДИН ОПТИМІЗОВАНИЙ ЕФЕКТ ДЛЯ ЗАВАНТАЖЕННЯ JWT СЕСІЇ ---
     useEffect(() => {
         const accessToken = localStorage.getItem('access_token');
         if (accessToken) {
@@ -137,7 +135,7 @@ export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCom
             formData.append('user.email', user.email);
             if (user.homepage) {
                 formData.append('user.homepage', user.homepage);
-                localStorage.setItem('user_homepage', user.homepage); // збережемо лінку про всяк випадок
+                localStorage.setItem('user_homepage', user.homepage);
             }
 
             formData.append('text', htmlText);
@@ -177,7 +175,6 @@ export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCom
                 if (fileInputRef.current) fileInputRef.current.value = '';
                 setFile(null);
 
-                // Тригеримо оновлення капчі для наступного повідомлення
                 setTriggerCaptchaRefresh(prev => !prev);
 
                 if (onReplyCancel) onReplyCancel();

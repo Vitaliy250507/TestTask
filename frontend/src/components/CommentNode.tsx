@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CommentForm } from './CommentForm';
 
 interface User {
@@ -27,7 +27,7 @@ interface CommentNodeProps {
 
 export const CommentNode: React.FC<CommentNodeProps> = ({ comment, activeReplyId, setActiveReplyId, onCommentSuccess }) => {
     const isReplyingThis = activeReplyId === comment.id;
-
+    const [activeLightboxImage, setActiveLightboxImage] = useState<string | null>(null);
     return (
         <div style={{
             borderLeft: '3px solid #3b82f6',
@@ -55,7 +55,16 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ comment, activeReplyId
                         <img
                             src={comment.file.startsWith('http') ? comment.file : `http://localhost:8000${comment.file}`}
                             alt="attachment"
-                            style={{ maxHeight: '120px', borderRadius: '4px', display: 'block' }}
+                            onClick={() => comment.file && setActiveLightboxImage(comment.file.startsWith('http') ? comment.file : `http://localhost:8000${comment.file}`)}
+                            style={{
+                                maxHeight: '120px',
+                                borderRadius: '4px',
+                                display: 'block',
+                                cursor: 'pointer',
+                                transition: 'transform 0.15s ease'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.03)'}
+                            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
                         />
                     ) : (
                         <a
@@ -98,6 +107,54 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ comment, activeReplyId
                             onCommentSuccess={onCommentSuccess}
                         />
                     ))}
+                </div>
+            )}
+            {activeLightboxImage && (
+                <div
+                    onClick={() => setActiveLightboxImage(null)}
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        width: '100vw',
+                        height: '100vh',
+                        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        zIndex: 9999,
+                        cursor: 'zoom-out'
+                    }}
+                >
+                    <button
+                        onClick={() => setActiveLightboxImage(null)}
+                        style={{
+                            position: 'absolute',
+                            top: '20px',
+                            right: '25px',
+                            background: 'none',
+                            border: 'none',
+                            color: '#fff',
+                            fontSize: '35px',
+                            cursor: 'pointer',
+                            fontWeight: 'bold'
+                        }}
+                    >
+                        &times;
+                    </button>
+
+                    <img
+                        src={activeLightboxImage}
+                        alt="Повний розмір"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                            maxWidth: '90%',
+                            maxHeight: '90%',
+                            borderRadius: '4px',
+                            boxShadow: '0px 4px 20px rgba(0,0,0,0.5)',
+                            cursor: 'default'
+                        }}
+                    />
                 </div>
             )}
         </div>

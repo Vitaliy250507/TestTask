@@ -23,3 +23,19 @@ textarea:focus {
   outline: 2px solid #2563eb !important;
   border-color: transparent !important;
 }
+
+@keyframes scaleUp {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+div[style*="position: fixed"] img {
+  animation: scaleUp 0.2s ease-out;
+}
