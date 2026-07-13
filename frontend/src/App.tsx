@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { CommentForm } from './components/CommentForm';
 import { CommentNode } from './components/CommentNode';
-import { api } from './api/axios';
 import axios from 'axios';
 
 interface User {
@@ -10,12 +9,12 @@ interface User {
   homepage?: string;
 }
 
-interface PaginatedCommentsResponse {
-  count: number;
-  next: string | null;
-  previous: string | null;
-  results: Comment[];
-}
+// interface PaginatedCommentsResponse {
+//   count: number;
+//   next: string | null;
+//   previous: string | null;
+//   results: Comment[];
+// }
 
 interface Comment {
   id: number;
