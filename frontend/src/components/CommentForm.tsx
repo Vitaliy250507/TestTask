@@ -126,6 +126,22 @@ export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCom
             return;
         }
 
+        const usernameRegex = /^[a-zA-Z0-9]+$/;
+        if (!usernameRegex.test(user.username)) {
+            setError('Username може містити лише латинські літери та цифри');
+            return;
+        }
+
+        if (fileInputRef.current?.files?.[0]) {
+            const selectedFile = fileInputRef.current.files[0];
+            const fileExtension = selectedFile.name.split('.').pop()?.toLowerCase();
+
+            if (fileExtension === 'txt' && selectedFile.size > 100 * 1024) {
+                setError('Текстовий файл не повинен перевищувати 100 Кб');
+                return;
+            }
+        }
+
         htmlText = htmlText.replace(/<b>/g, '<strong>').replace(/<\/b>/g, '</strong>');
         htmlText = htmlText.replace(/<em>/g, '<i>').replace(/<\/em>/g, '</i>');
 
