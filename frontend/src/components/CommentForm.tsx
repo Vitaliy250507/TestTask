@@ -21,7 +21,7 @@ export const CommentForm: React.FC<CommentFormProps> = ({ parentId = null, onCom
     const [user, setUser] = useState<UserProfile>({ username: '', email: '', homepage: '' });
     const [captchaValue, setCaptchaValue] = useState<string>('');
     const [captchaKey, setCaptchaKey] = useState<string>('');
-    const [file, setFile] = useState<File | null>(null);
+    const [_file, setFile] = useState<File | null>(null);
     const [triggerCaptchaRefresh, setTriggerCaptchaRefresh] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
