@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const RENDER_BACKEND_URL = import.meta.env.VITE_API_URL;
+export const RENDER_BACKEND_URL = import.meta.env.VITE_API_URL;
+
+export const API_BASE_URL = RENDER_BACKEND_URL || 'http://localhost:8000';
 
 if (RENDER_BACKEND_URL) {
     axios.interceptors.request.use((config) => {
@@ -11,9 +13,8 @@ if (RENDER_BACKEND_URL) {
     });
 }
 
-const API_URL = 'http://localhost:8000/api/';
 export const api = axios.create({
-    baseURL: RENDER_BACKEND_URL ? `${RENDER_BACKEND_URL}/api/` : API_URL,
+    baseURL: `${API_BASE_URL}/api/`,
     headers: {
         'Content-Type': 'application/json',
     },
@@ -26,3 +27,5 @@ api.interceptors.request.use((config) => {
     }
     return config;
 });
+
+export default api;
