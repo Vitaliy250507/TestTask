@@ -14,6 +14,9 @@ RUN uv pip install --system --no-cache -r pyproject.toml
 RUN uv pip install --system whitenoise
 COPY . /app/
 
+RUN chmod +x /app/entrypoint.sh
+
 EXPOSE 8000
 
-CMD python manage.py migrate && daphne -b 0.0.0.0 -p 8000 config.asgi:application
+ENTRYPOINT ["/app/entrypoint.sh"]
+CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "config.asgi:application"]

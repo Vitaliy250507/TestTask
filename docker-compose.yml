@@ -41,6 +41,7 @@ services:
     environment:
       - PYTHONDONTWRITEBYTECODE=1
       - PYTHONUNBUFFERED=1
+      - DATABASE_URL=postgres://comments_user:comments_password@db:5432/comments_db
 
   frontend:
     image: node:20-alpine

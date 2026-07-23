@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { CommentForm } from './CommentForm';
-import API_BASE_URL from '../api/axios';
-
+import { API_BASE_URL } from '../api/axios';
 
 interface User {
     username: string;
