@@ -110,7 +110,13 @@ class CommentCreateSerializer(serializers.ModelSerializer):
         existing_user_by_email = UserModel.objects.filter(email__iexact=email).first()
         if existing_user_by_email and existing_user_by_email.username != username:
             raise serializers.ValidationError(
-                {"user": {"email": f"Користувач з поштою '{email}' вже існує."}}
+                {
+                    "user": {
+                        "email": [
+                            f"Користувач з поштою '{email}' вже існує під нікнеймом '{existing_user_by_email.username}'."
+                        ]
+                    }
+                }
             )
 
         user, created = UserModel.objects.get_or_create(
@@ -125,7 +131,7 @@ class CommentCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {
                     "user": {
-                        "username": f"Нікнейм '{username}' вже зайнятий іншою поштою."
+                        "username": [f"Нікнейм '{username}' вже зайнятий іншою поштою."]
                     }
                 }
             )
